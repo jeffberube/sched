@@ -7,3 +7,6 @@ sched: $(OBJ)
 
 .c.o:
 	$(CC) -c $<
+
+clean:
+	rm *.o sched
