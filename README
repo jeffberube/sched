@@ -1,0 +1,11 @@
+@Author:	Jeff Berube
+@Title:		Scheduler (CS3790 Assignment #1)
+@Description:	Mock process scheduler using signals
+
+To compile, type 'make' in top directory of project.
+
+To clone this repo, type:
+
+git clone https://github.com/jeffberube/sched
+
+All code in this repository is copyright Jeff Berube. You may not use, distribute, copy in whole or in part any of this code without the explicit written consent of Jeff Berube.
