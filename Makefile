@@ -3,7 +3,7 @@ OBJ = sched.o pnode.o
 LIB = -lncurses
 
 sched: $(OBJ)
-	$(CC) $(OBJ) $(LIB) -o $@
+	$(CC) $(OBJ) $(LIB) -g -o $@
 
 .c.o:
 	$(CC) -c $<
