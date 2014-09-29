@@ -11,6 +11,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <ncurses.h>
+#include <ctype.h>
+#include <locale.h>
 #include <string.h>
 #include <errno.h>
 
@@ -59,13 +61,18 @@ int lastline = 0, logcount = 0;
 
 void log_add_line(char *buffer) {
 
-	logtable[lastline] = buffer;
+	char* message = malloc(sizeof(char) * sizeof(buffer));
+
+	memset(message, '\0', sizeof(message));
+	strcpy(message, buffer);
+
+	logtable[lastline] = message;
 
 	lastline++;
 
 	lastline = lastline % (nrows - HEADER - FOOTER);
 
-	if (logcount < (nrows - HEADER - FOOTER) - 1) logcount++;
+	if (logcount <= (nrows - HEADER - FOOTER) - 1) logcount++;
 }
 
 /* 
@@ -81,23 +88,28 @@ void log_add_line(char *buffer) {
 
 void next(int code) {
 
-	kill(running_pid, SIGSTOP);
-
+	if(kill(running_pid, SIGSTOP) == -1)
+		printf("%d: %s.\n", running_pid, strerror(errno));
+	
 	/* If there's a process in the list */
 	if (head) { 
 
-		/* Run next process */
-		kill(head->pid, SIGCONT);
 
 		/* Fix pointers */
 		tail = head;
 		head = head->next;
 
+		/* Run next process */
+		kill(head->pid, SIGCONT);
+
+		running_pid = head->pid;
+
 	/* If list is empty, run idle process */
 	} else {
 
 		kill(idle_proc->pid, SIGCONT);
-	
+		running_pid = idle_proc->pid;
+
 	}
 
 	alarm(3);
@@ -123,7 +135,7 @@ int spawn_process(char name[32]) {
 		strcat(string, name);
 		strcat(string, "\n");
 
-		/* Close input pipe on child process */
+		/* Close read end of pipe on child process */
 		close(fd[0]);
 
 		while (1) {
@@ -131,8 +143,7 @@ int spawn_process(char name[32]) {
 			sleep(1);
 
 			if(write(fd[1], string, strlen(string) + 1) != strlen(string) + 1)
-			printf("%s", strerror(errno));
-			printf("%s", string);	
+				printf("\n%s", strerror(errno));
 		}
 
 	/* If parent process */
@@ -236,7 +247,7 @@ int ani_char() {
 	static int i = 0, ch = 0;
 
 	i++;
-	i = i % 1000;
+	i = i % 500;
 
 	if (!i) {
 		ch++;
@@ -258,40 +269,55 @@ int ani_char() {
 void update_screen() {
 
 	char ani[] = {'/', '-', '\\', '|', 0};
+	unsigned char line_output[(int)(ncols * 0.6 - (2 * PADDING) + 1)];
 
 	erase();
 
-	/* Print label "Piped Output:" */
-	mvprintw(PADDING + 0, PADDING + 1, "Piped Output: \n");	
+	/* Print label "Output:" */
+	mvprintw(PADDING + 0, PADDING + 1, "Output: \n");	
 
-	/* Print label "Process Table:" */
-	mvprintw(PADDING + 0, ncols * 0.6 - PADDING, "Process Table: \n");
+		/* Print label "Process Table:" */
+	mvprintw(PADDING + 0, ncols * 0.6 - PADDING, "Process Table (PID, Name): \n");
 
-	/* Print process table column labels */
-	mvprintw(PADDING + 1, ncols * 0.6 - PADDING, "PID\t\tName");
+	/* Print line under Output and Process Table labels */
+	attron(COLOR_PAIR(4));
+
+	int l = 0;
+
+	while (l < ncols - (2 * PADDING) - 2) {
+
+		if (l > ncols * 0.6 - (2 * PADDING) - 12 && l < ncols * 0.6 - (2 * PADDING) - 2)
+			mvprintw(PADDING + 1, PADDING + 1 + l, " ");
+		else
+			mvprintw(PADDING + 1, PADDING +1 + l, "\u2500");
+		l++;
+	}
+
+	attroff(COLOR_PAIR(4));
+
 
 	/* Print log under Piped Output */
 	int j = 0;
 	int logrows = nrows - HEADER - FOOTER;
-	int startline = logcount < logrows ? 0 : lastline;
+	int startline = logcount < logrows ? 0 : lastline % logrows;
 
 	
 	while (j < logrows) {
 		
 		int line = (startline + j) % logrows;
-		
+	
+		/*	
 		mvprintw(PADDING + 23, PADDING + 1, 
-				"logrows:%d startline:%d lastline:%d line:%d j:%d", 
-				logrows, startline, lastline, line, j);
-		
+				"logrows:%d logcount:%d startline:%d lastline:%d line:%d j:%d", 
+				logrows, logcount, startline, lastline, line, j);
+		*/
+
 		if(logtable[line]) 
 			mvprintw(PADDING + 2 + j, PADDING + 1, "%s", logtable[line]);
-		
+
 		j++;
 
 	}
-
-	mvprintw(nrows - 1, PADDING + 1, "%d", j);
 
 	/* Print process table */
 	mvprintw(PADDING + 2, ncols * 0.6 - PADDING - 2, "%c", ani[ani_char()]);
@@ -312,11 +338,11 @@ void update_screen() {
 		
 			pnode *tmp = head;
 
-			while (tmp->next) {
+			while (tmp->next && tmp->next != head) {
 			
 				tmp = tmp->next;
 				mvprintw(PADDING + 2 + i, ncols * 0.6 - PADDING, 
-						"%d\t%s", tmp->name);
+						"%d\t%s", tmp->pid, tmp->name);
 
 				i++;
 			}
@@ -330,6 +356,23 @@ void update_screen() {
 	mvprintw(PADDING + 2 + i, ncols * 0.6 - PADDING, "%d\tIdle\n", idle_proc->pid);
 	attroff(COLOR_PAIR(3));
 
+
+	/* Print line over command line */
+	attron(COLOR_PAIR(4));
+
+	l = 0;
+
+	while (l < ncols - (2 * PADDING) - 2) {
+
+		mvprintw(nrows - FOOTER , PADDING +1 + l, "\u2500");
+		l++;
+	}
+
+	attroff(COLOR_PAIR(4));
+
+	/* Print command line label */
+	mvprintw(nrows - FOOTER + 1, PADDING + 1, "COMMAND > ");
+
 	refresh();
 
 }
@@ -340,6 +383,8 @@ void update_screen() {
  */
 
 int main() {
+
+	setlocale(LC_CTYPE, "");
 
 	/* Init variables */
 	char buffer[1024];
@@ -369,7 +414,7 @@ int main() {
 	} else {
 
 		/* Close output side of pipe */
-		close(fd[1]);
+		// close(fd[1]);
 
 		/* Setup signal handler struct */
 		sigemptyset(&sig);
@@ -395,8 +440,8 @@ int main() {
 		running_pid = pid;
 
 		int a = spawn_process("proc_a");
-		//a = spawn_process("proc_b");
-		//a = spawn_process("proc_c");
+		a = spawn_process("proc_b");
+		a = spawn_process("proc_c");
 	
 		/* Init ncurses and set parameters */
 		initscr();
@@ -414,7 +459,8 @@ int main() {
 		init_pair(1, COLOR_WHITE, COLOR_BLACK);
 		init_pair(2, COLOR_RED, COLOR_BLACK);
 		init_pair(3, COLOR_CYAN, COLOR_BLACK);
-		
+		init_pair(4, COLOR_BLUE, COLOR_BLACK);
+
 		char ch;
 		int test = 0, count;
 
