@@ -6,6 +6,8 @@
  *
  */
 
+#define _XOPEN_SOURCE_EXTENDED
+
 #include <stdio.h>
 #include <ncurses.h>
 
@@ -33,11 +35,14 @@ void print_ui() {
 	attron(COLOR_PAIR(4));
 
 	int i = 0;
+	char hline[2] = {175,0};	
+
+	move(VPADDING + 1, HPADDING);
 
 	while (i < ncols - (2 * HPADDING)) {
 
-		mvprintw(VPADDING + 1, HPADDING + i, 
-				(i > pt_x - 10 && i < pt_x) ? " " : "\u2500");
+		// mvprintw(VPADDING + 1, HPADDING + i,
+			addch((i > pt_x - 10 && i < pt_x) ? ' ' : ACS_HLINE);
 		
 		i++;
 
@@ -49,10 +54,12 @@ void print_ui() {
 	attron(COLOR_PAIR(4));
 
 	i = 0;
+	
+	move(nrows - FOOTER, HPADDING);
 
 	while (i < ncols - (2 * HPADDING)) {
 
-		mvprintw(nrows - FOOTER , HPADDING + i, "\u2500");
+		addch(ACS_HLINE);
 		i++;
 	}
 
@@ -101,7 +108,7 @@ int ani_char() {
 	static int i = 0, ch = 0;
 
 	i++;
-	i = i % 500;
+	i = i % 10;
 
 	if (!i) {
 		ch++;
