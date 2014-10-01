@@ -161,13 +161,13 @@ void setup_clock_int() {
  * Parses first word in string until it reaches a space character then
  * compares to list of valid commands.
  *
- * Returns a constant corresponding to the command
+ * Returns a constant corresponding to the command code or -1 if an error occured
  *
  */
 
 int parse_command() {
 
-	char cb[6] = {0};
+	char cb[64] = {0};
 	char ch;
 
 	int i = 0;
@@ -195,19 +195,23 @@ int parse_command() {
 }
 
 /*
- * command()
+ * parse_param()
  *
- * Tries to parse and execute the command sitting on the command line
+ * Parses and validates parameter after command. 
+ *
+ * Returns 0 on success, -1 on error.
  *
  */
+union param {
+	int pid;
+	char name[9];
+	FILE executable;	
+};
 
-void command() {
 
-	/* Command buffer to put command part in */
-	int code = parse_command();
+int parse_param(int c_code, union param *c_param) {
 
-
-	switch (code) {
+	switch (c_code) {
 	
 		case SPAWN:
 
@@ -220,19 +224,60 @@ void command() {
 		case KILL:
 
 			break;
-
-		case HELP:
-
+		
+		default:
 			break;
+	}
 
-		case QUIT:
+}
 
-			break;
+/*
+ * command()
+ *
+ * Tries to parse and execute the command sitting on the command line
+ *
+ */
 
-		case -1:
+void command() {
 
-			break;
+	union param c_param;
+	int c_code, p_error;
 
+	c_code = parse_command();
+
+	if (c_code == SPAWN || c_code == EXEC || c_code == KILL)
+		p_error = parse_param(c_code, &c_param);
+
+	if (c_code != -1 && p_error != -1) {
+
+		switch (c_code) {
+	
+			case SPAWN:
+
+				break;
+
+			case EXEC:
+
+				break;
+
+			case KILL:
+
+				break;
+
+			case HELP:
+
+				break;
+
+			case QUIT:
+
+				break;
+	
+		}
+
+	} else if (c_code == -1) {
+	
+	} else {
+	
 	}
 
 	/* Reset command buffer and pointer */
@@ -299,8 +344,7 @@ int main() {
 
 		next(0);	
 
-		int ch;
-		int test = 0, count;
+		int ch, count;
 
 		/* Enter main loop */
 		while (1) {
@@ -343,7 +387,7 @@ int main() {
 					command();
 					break;
 
-				/* Otherwise, add character to buffer */
+				/* Otherwise, add character to buffer if buffer isnt full */
 				default:
 					if (comm_ptr < (sizeof(comm)))
 						comm[comm_ptr++] = (char)ch;
