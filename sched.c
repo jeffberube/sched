@@ -1,8 +1,27 @@
 /* 
  * @Author: 	Jeff Berube
- * @Title:	Scheduler (Assignment #1) 
+ * @Title:	Scheduler (Assignment #1 - CS3790) 
  *
- * @Description: Scheduler simulator. Spawn and kill processes on the fly.
+ * @Description: Scheduler simulator. Spawn and kill processes on the fly. Scheduling
+ * 		uses a circular linked list like a real kernel and has an idle process
+ * 		if no other processes are scheduled to run.
+ *
+ *	 	To use a command, type the command in the specified format and then 
+ *	 	press enter at the "COMMAND > " prompt.
+ *
+ * @Commands:	
+ *
+ * 	spawn <processname>	Forks scheduler and spawns a process that outputs
+ * 				processname to the pipe. Process name is 8 characters
+ * 				maximum.
+ *
+ * 	kill <pid>		Kills a process using its process id (pid).	
+ *
+ * 	exec <filename>		Executes process within scheduler directory and pipes
+ * 				the output to the scheduler.
+ *
+ * 	help			Displays a window with available commands and their
+ * 				syntax.
  *
  */
 
@@ -10,17 +29,18 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <ncurses.h>
-#include <ctype.h>
-#include <locale.h>
 #include <string.h>
 #include <errno.h>
 
 #include "pnode.h"
+#include "ui.h"
+#include "proc.h"
 
-#define PADDING 1
-#define HEADER	3	/* How many lines the header spans */
-#define FOOTER	3	/* How many lines the footer spans */
+#define SPAWN		1
+#define EXEC		2
+#define KILL		3
+#define HELP		4
+#define QUIT		5
 
 typedef enum status {on, off} status;
 
@@ -28,31 +48,24 @@ int pid, running_pid, fd[2];
 status flag = on;
 bool alarm_set = false;
 
-/*
- * Signal handling variables
- *
- */
-
+/* Signal handling variables */
 struct sigaction newhandler, oldhandler;
 sigset_t sig;
 
+/* Process table variables */
 pnode *head, *tail, *idle_proc;
 
-/*
- * Set global variables of terminal geometry to defaults.
- * Gets updated when initializing ncurses or when terminal window is resized.
- *
- */
- 
+/* Terminal geometry variables. Updated in init_ncurses() */
 int ncols = 80, nrows = 24;
 
-char comm[1024];
-int comm_pos = 0;
+/* Command buffer */
+char comm[64] = {0};
+int comm_ptr = 0;
 
 /*
  * log_add_line
  *
- * Adds a line to the output window
+ * Adds a line to the log table
  *
  */
 
@@ -73,12 +86,13 @@ void log_add_line(char *buffer) {
 	lastline = lastline % (nrows - HEADER - FOOTER);
 
 	if (logcount <= (nrows - HEADER - FOOTER) - 1) logcount++;
+
 }
 
 /* 
  * next
  *
- * Signals child process to block or continue. 
+ * Runs next process in process table. If no processes are queued, run idle process. 
  *
  * Arguments:
  *
@@ -93,7 +107,6 @@ void next(int code) {
 	
 	/* If there's a process in the list */
 	if (head) { 
-
 
 		/* Fix pointers */
 		tail = head;
@@ -117,265 +130,117 @@ void next(int code) {
 }
 
 /*
- * spawn_process
+ * setup_clock_int()
  *
- * Spawns a new process in the scheduler. Adds process to list.
+ * Sets up mock clock interrupt handler
  *
  */
 
-int spawn_process(char name[32]) {
+void setup_clock_int() {
 
-	pid = 0;
-	pid = fork();
+	/* Setup signal handler struct */
+	sigemptyset(&sig);
+	newhandler.sa_handler = next;
+	newhandler.sa_mask = sig;
+	newhandler.sa_flags = 0;
 
-	/* If child process */
-	if (!pid) {
-		
-		char string[33] = "";
-		strcat(string, name);
-		strcat(string, "\n");
-
-		/* Close read end of pipe on child process */
-		close(fd[0]);
-
-		while (1) {
-
-			sleep(1);
-
-			if(write(fd[1], string, strlen(string) + 1) != strlen(string) + 1)
-				printf("\n%s", strerror(errno));
-		}
-
-	/* If parent process */
-	} else {
+	/* Try to install signal handler. On failure, exit. */
+	if (sigaction(SIGALRM, &newhandler, &oldhandler) == -1) {
 	
-		kill(pid, SIGSTOP);
-
-		/* Create new process node */
-		pnode* proc = pnode_create(pid, name);
-		
-		/* Add process to circular linked list */
-		if(!head) {
-		
-			head = tail = proc;
-			proc->next = proc;
-			proc->prev = proc;
-	
-		} else {
-	
-			tail->next = proc;
-			proc->next = head;
-			proc->prev = tail;
-			tail = tail->next;
-			
-		}
-
+		printf("1 - Cannot install signal handler\n");
+		exit(-1);
 
 	}
 
-	return 0;
+	alarm(3);
 }
 
 /*
- * kill_process
+ * parse_command()
  *
- * Kills process from scheduling list.
+ * Parses first word in string until it reaches a space character then
+ * compares to list of valid commands.
  *
- */
-
-void kill_process(int pid) {
-
-	pnode *tmp = pnode_get_node_by_pid(pid);
-	int tmppid = tmp->pid;
-
-	/* If process is found, adjust list and destroy process */
-	if (tmp) {
-		
-		if (head != tail) {
-		
-			/*
-			 * If head is node to kill, 
-			 * point head to next node and adjust tail pointer
-			 *
-			 */
-
-			if (head == tmp) {
-				head = tmp->next;
-				if (head) head->prev = tail;
-			}
-
-			/*
-			 *  If node to kill is tail, 
-			 *  point tail to previous node and adjust head pointer
-			 *
-			 */
-
-			if (tail == tmp) {
-				tail = tail->prev;
-				if (tail) tail->next = head;
-			}
-		
-		} else head = tail = NULL;
-	
-		/* Destroy node */
-		pnode_destroy(tmp);
-		kill(tmppid, SIGKILL);
-
-		/* Run next process in line. If list is empty, run idle process. */
-		if (head) kill(head->pid, SIGCONT);
-		else kill(idle_proc->pid, SIGCONT);
-
-	/* If process not found, display error message */
-	} else {
-	
-		char error[] = "";
-		log_add_line(error);
-
-	}
-
-}
-
-/*
- * ani_char()
- *
- * Returns index of spinning character
+ * Returns a constant corresponding to the command
  *
  */
 
-int ani_char() {
+int parse_command() {
 
-	static int i = 0, ch = 0;
+	char cb[6] = {0};
+	char ch;
 
-	i++;
-	i = i % 500;
-
-	if (!i) {
-		ch++;
-		ch = ch % 4;
-	}
-
-	return ch;
-
-}
-
-/*
- * update_screen
- *
- * Updates the current screen.
- *
- */
-
-
-void update_screen() {
-
-	char ani[] = {'/', '-', '\\', '|', 0};
-	unsigned char line_output[(int)(ncols * 0.6 - (2 * PADDING) + 1)];
-
-	erase();
-
-	/* Print label "Output:" */
-	mvprintw(PADDING + 0, PADDING + 1, "Output: \n");	
-
-		/* Print label "Process Table:" */
-	mvprintw(PADDING + 0, ncols * 0.6 - PADDING, "Process Table (PID, Name): \n");
-
-	/* Print line under Output and Process Table labels */
-	attron(COLOR_PAIR(4));
-
-	int l = 0;
-
-	while (l < ncols - (2 * PADDING) - 2) {
-
-		if (l > ncols * 0.6 - (2 * PADDING) - 12 && l < ncols * 0.6 - (2 * PADDING) - 2)
-			mvprintw(PADDING + 1, PADDING + 1 + l, " ");
-		else
-			mvprintw(PADDING + 1, PADDING +1 + l, "\u2500");
-		l++;
-	}
-
-	attroff(COLOR_PAIR(4));
-
-
-	/* Print log under Piped Output */
-	int j = 0;
-	int logrows = nrows - HEADER - FOOTER;
-	int startline = logcount < logrows ? 0 : lastline % logrows;
-
-	
-	while (j < logrows) {
-		
-		int line = (startline + j) % logrows;
-	
-		/*	
-		mvprintw(PADDING + 23, PADDING + 1, 
-				"logrows:%d logcount:%d startline:%d lastline:%d line:%d j:%d", 
-				logrows, logcount, startline, lastline, line, j);
-		*/
-
-		if(logtable[line]) 
-			mvprintw(PADDING + 2 + j, PADDING + 1, "%s", logtable[line]);
-
-		j++;
-
-	}
-
-	/* Print process table */
-	mvprintw(PADDING + 2, ncols * 0.6 - PADDING - 2, "%c", ani[ani_char()]);
-	
-	/* Maintains which row to print to */
 	int i = 0;
 
-	/* If there is a process in the list */
-	if (head) {
+	/* Iterate through and put command in cb in lowercase */
+	while ((ch = *(comm + i)) != ' ' && i < 5) {
 		
-		mvprintw(PADDING + 2 + i, ncols * 0.6 - PADDING, "%d\t%s", 
-				head->pid, head->name);	
-
-		i++;
-
-		/* If there is more than one process in the list */
-		if (head->next && head != tail) {
-		
-			pnode *tmp = head;
-
-			while (tmp->next && tmp->next != head) {
-			
-				tmp = tmp->next;
-				mvprintw(PADDING + 2 + i, ncols * 0.6 - PADDING, 
-						"%d\t%s", tmp->pid, tmp->name);
-
-				i++;
-			}
-		
-		}
+		cb[i++] = tolower(ch);
 
 	}
 
-	/* Print idle process */
-	attron(COLOR_PAIR(3));
-	mvprintw(PADDING + 2 + i, ncols * 0.6 - PADDING, "%d\tIdle\n", idle_proc->pid);
-	attroff(COLOR_PAIR(3));
+	if (strcmp(cb, "spawn")) return SPAWN;
+	
+	else if (strcmp(cb, "exec")) return EXEC;
+	
+	else if (strcmp(cb, "kill")) return KILL;
+	
+	else if (strcmp(cb, "help")) return HELP;
+	
+	else if (strcmp(cb, "quit")) return QUIT;
+	
+	else return -1;
 
-
-	/* Print line over command line */
-	attron(COLOR_PAIR(4));
-
-	l = 0;
-
-	while (l < ncols - (2 * PADDING) - 2) {
-
-		mvprintw(nrows - FOOTER , PADDING +1 + l, "\u2500");
-		l++;
-	}
-
-	attroff(COLOR_PAIR(4));
-
-	/* Print command line label */
-	mvprintw(nrows - FOOTER + 1, PADDING + 1, "COMMAND > ");
-
-	refresh();
 
 }
+
+/*
+ * command()
+ *
+ * Tries to parse and execute the command sitting on the command line
+ *
+ */
+
+void command() {
+
+	/* Command buffer to put command part in */
+	int code = parse_command();
+
+
+	switch (code) {
+	
+		case SPAWN:
+
+			break;
+
+		case EXEC:
+
+			break;
+
+		case KILL:
+
+			break;
+
+		case HELP:
+
+			break;
+
+		case QUIT:
+
+			break;
+
+		case -1:
+
+			break;
+
+	}
+
+	/* Reset command buffer and pointer */
+	memset(comm, 0, sizeof(comm));
+	comm_ptr = 0;	
+
+}
+
 
 /*
  * Main program
@@ -383,8 +248,6 @@ void update_screen() {
  */
 
 int main() {
-
-	setlocale(LC_CTYPE, "");
 
 	/* Init variables */
 	char buffer[1024];
@@ -395,7 +258,7 @@ int main() {
 	/* Fork monitor and idle process */
 	pid = fork();
 
-	/* If child process */
+	/* If child process, this is the idle process */
 	if (!pid) {
 		
 		char string[] = "Idle.\n";
@@ -405,32 +268,23 @@ int main() {
 		
 		while (1) {
 
-			sleep(1);
 			// Output string to pipe	
 			write(fd[1], string, strlen(string) + 1);
+
+			sleep(1);
+
 		}
 	
-	/* If parent process */
+	/* Else this is parent process, this is scheduler */
 	} else {
 
-		/* Close output side of pipe */
-		// close(fd[1]);
+		/* Initiate gui */
+		init_ncurses();
 
-		/* Setup signal handler struct */
-		sigemptyset(&sig);
-		newhandler.sa_handler = next;
-		newhandler.sa_mask = sig;
-		newhandler.sa_flags = 0;
+		/* Setup clock interrupt handler */
+		setup_clock_int();
 
-		/* Try to install signal handler. On failure, exit. */
-		if (sigaction(SIGALRM, &newhandler, &oldhandler) == -1) {
-		
-			printf("1 - Cannot install signal handler\n");
-			exit(-1);
-
-		}
-		
-		/* Set flags for non blocking read call */
+		/* Set flags for non blocking read call on pipe */
 		int flags = fcntl(fd[0], F_GETFL, 0);
 		fcntl(fd[0], F_SETFL, flags | O_NONBLOCK);
 
@@ -442,52 +296,67 @@ int main() {
 		int a = spawn_process("proc_a");
 		a = spawn_process("proc_b");
 		a = spawn_process("proc_c");
-	
-		/* Init ncurses and set parameters */
-		initscr();
-		noecho();
-		halfdelay(1); 
-		getmaxyx(stdscr, nrows, ncols); 
-		
-		/* Setup ncurses colors */
-		start_color(); 
-		
-		/* If terminal can change colors, change cyan to light gray */
-		if(can_change_color()) 
-			init_color(COLOR_CYAN, 600, 600, 600); 
-		
-		init_pair(1, COLOR_WHITE, COLOR_BLACK);
-		init_pair(2, COLOR_RED, COLOR_BLACK);
-		init_pair(3, COLOR_CYAN, COLOR_BLACK);
-		init_pair(4, COLOR_BLUE, COLOR_BLACK);
 
-		char ch;
+		next(0);	
+
+		int ch;
 		int test = 0, count;
 
-		alarm(3);
-
-		while(1) {
+		/* Enter main loop */
+		while (1) {
 			
-			/* Poll to see if there is data to be read */
+			/* Poll to see if there is data to be read in the pipe */
 			if((count = read(fd[0], buffer, 1024)) > 0) {
 				char message[1024];
 				strcpy(message, buffer);
 				log_add_line(message);
 			}
 			 
-			/* Keep reading command line
+			/* Poll to see if there is a character waiting in the buffer */
 			ch = getch();
-			if (ch != ERR) {
-				comm[comm_pos++] = ch;
-			} 
-			*/
+
+			switch (ch) {
 			
+				/* If no character in buffer */
+				case ERR: 
+					
+					break;
+
+				/* If character is backspace */
+				case 7:
+				case 127:
+				case KEY_DC:
+				case KEY_BACKSPACE:
+					
+					if (comm_ptr != 0) {
+						
+						comm_ptr = comm_ptr > 0 ? comm_ptr - 1 : 0;
+						comm[comm_ptr] = '\0';
+
+					}
+
+					break;
+
+				/* If character is enter, parse command and execute */
+				case 10:
+				case KEY_ENTER:
+					command();
+					break;
+
+				/* Otherwise, add character to buffer */
+				default:
+					if (comm_ptr < (sizeof(comm)))
+						comm[comm_ptr++] = (char)ch;
+			
+			} 
+		
 			/* Update screen */
 			update_screen();
-		}
+
+		} /* End main loop */
 		
 		/* Finish ncurses */
-		endwin();
+		end_ncurses();
 
 	}
 

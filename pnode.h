@@ -12,6 +12,8 @@
  *
  */
 
+#define __pnode_h_
+
 typedef struct pnode pnode;
 
 struct pnode {
