@@ -32,6 +32,7 @@
 #include <ncurses.h>
 #include <locale.h>
 #include <ctype.h>
+#include <string.h>
 
 #ifndef __pnode_h_
 	#include "pnode.h"
@@ -47,7 +48,7 @@ extern pnode *head, *tail, *idle_proc;
 extern int ncols, nrows, comm_ptr, lastline, logcount;
 extern char *logtable[128];
 extern char comm[64];
-
+extern char *errstr;
 
 void print_ui();
 

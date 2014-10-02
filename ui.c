@@ -14,6 +14,17 @@
 #include "ui.h"
 
 /*
+ * show_help()
+ *
+ * Shows help window
+ *
+ */
+
+void show_help() {
+
+}
+
+/*
  * print_ui()
  *
  * Prints all ui elements like labels and lines
@@ -41,17 +52,11 @@ void print_ui() {
 
 	while (i < ncols - (2 * HPADDING)) {
 
-		// mvprintw(VPADDING + 1, HPADDING + i,
-			addch((i > pt_x - 10 && i < pt_x) ? ' ' : ACS_HLINE);
+		addch((i > pt_x - 10 && i < pt_x) ? ' ' : ACS_HLINE);
 		
 		i++;
 
 	}
-
-	attroff(COLOR_PAIR(4));
-
-	/* Print line over command line */
-	attron(COLOR_PAIR(4));
 
 	i = 0;
 	
@@ -65,8 +70,19 @@ void print_ui() {
 
 	attroff(COLOR_PAIR(4));
 
+	/* Print error message */
+	if (errstr) {
+
+		attron(COLOR_PAIR(2));
+		
+		mvprintw(nrows - FOOTER + 2, HPADDING, "%s", errstr);
+
+		attroff(COLOR_PAIR(2));
+	
+	}
+
 	/* Print command line label */
-	mvprintw(nrows - FOOTER + 1, HPADDING, "COMMAND > %s", comm);
+	mvprintw(nrows - FOOTER + 1, HPADDING, "[sched]$ %s", comm);
 
 
 }
@@ -108,7 +124,7 @@ int ani_char() {
 	static int i = 0, ch = 0;
 
 	i++;
-	i = i % 10;
+	i = i % 2;
 
 	if (!i) {
 		ch++;

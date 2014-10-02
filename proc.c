@@ -69,6 +69,17 @@ int spawn_process(char name[32]) {
 }
 
 /*
+ * exec_process
+ *
+ * Executes a process within working directory
+ *
+ */
+
+void exec_process(char *filename) {
+
+}
+
+/*
  * kill_process
  *
  * Kills process from scheduling list.

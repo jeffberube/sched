@@ -23,6 +23,8 @@
  * 	help			Displays a window with available commands and their
  * 				syntax.
  *
+ *	quit			Quits the scheduler. Return to shell.
+ *
  */
 
 #include <stdio.h>
@@ -61,6 +63,9 @@ int ncols = 80, nrows = 24;
 /* Command buffer */
 char comm[64] = {0};
 int comm_ptr = 0;
+
+/* Error line buffer */
+char *errstr;
 
 /*
  * log_add_line
@@ -165,7 +170,7 @@ void setup_clock_int() {
  *
  */
 
-int parse_command() {
+int validate_command(char *command) {
 
 	char cb[64] = {0};
 	char ch;
@@ -173,7 +178,7 @@ int parse_command() {
 	int i = 0;
 
 	/* Iterate through and put command in cb in lowercase */
-	while ((ch = *(comm + i)) != ' ' && i < 5) {
+	while ((ch = *(command + i)) != 0) {
 		
 		cb[i++] = tolower(ch);
 
@@ -199,91 +204,165 @@ int parse_command() {
  *
  * Parses and validates parameter after command. 
  *
- * Returns 0 on success, -1 on error.
+ * Returns 1 on success, 0 on error.
  *
  */
-union param {
-	int pid;
-	char name[9];
-	FILE executable;	
-};
 
-
-int parse_param(int c_code, union param *c_param) {
+int validate_param(int c_code, char *param) {
 
 	switch (c_code) {
 	
-		case SPAWN:
-
+		case SPAWN: ;
+			
+			/* Test string length. Max length is 8 characters */
+			int i = 0;
+			
+			while (*(param + i) != 0) i++;
+			
+			if (i <= 8) return 1;
+			else {
+			
+				errstr = 
+				"Error: Maximum process name length is 8 characters";
+				
+				return 0;	
+			}
+			
 			break;
 
 		case EXEC:
 
 			break;
 
-		case KILL:
+		case KILL: ;
+
+			/* Parse string to int */
+			int arg_pid;
+
+			/* If cannot parse parameter to int */
+			if (sscanf(param, "%i", &arg_pid) != 1) {
+			
+				sprintf(errstr, "Error: \"%s\" is not a valid number.",
+						param);
+
+				return 0;
+
+			/* If cannot find pid in process list */
+			} else if (!pnode_get_node_by_pid(arg_pid)) {
+						
+				sprintf(errstr,	"Error: Could not find process %d.",
+						arg_pid);
+			
+			/* Else success */
+			} else return 1;
 
 			break;
 		
 		default:
+			return 1;
 			break;
 	}
 
 }
 
 /*
- * command()
+ * parse_command()
+ *
+ * Splits command string on spaces and returns pointer to array of strings
+ *
+ */
+
+char **parse_command() {
+
+	/* Variables to parse string into array */
+	char **parsed = NULL;
+	char *p = strtok(comm, " ");
+	int spaces = 0, i;
+
+	/* Split string in comm buffer and put in array parsed */
+	while (p) {
+		
+		/* Resize parsed to accept new pointer */
+		parsed = realloc(parsed, sizeof(char *) * ++spaces);
+
+		/* If realloc failed, exit function and display error in log */
+		if (parsed == NULL) {
+			log_add_line("Could not parse command. Please try again.");
+			return;
+		}
+
+		/* Add pointer to string to parsed */
+		parsed[spaces - 1] = p;
+		
+		/* Keep reading from where last strtok call left off */
+		p = strtok(NULL, " ");
+
+	}
+
+	/* Add final NULL pointer to find end of array */
+	parsed = realloc(parsed, sizeof(char *) * ++spaces);
+	parsed[spaces] = NULL;
+
+	return parsed;
+
+}
+
+/*
+ * exec_command()
  *
  * Tries to parse and execute the command sitting on the command line
  *
  */
 
-void command() {
+void exec_command() {
 
-	union param c_param;
-	int c_code, p_error;
+	int c_code;
+	char **args = parse_command();
 
-	c_code = parse_command();
+	c_code = validate_command(args[0]);
 
-	if (c_code == SPAWN || c_code == EXEC || c_code == KILL)
-		p_error = parse_param(c_code, &c_param);
-
-	if (c_code != -1 && p_error != -1) {
+	if (c_code != -1 && validate_param(c_code, args[1])) {
 
 		switch (c_code) {
 	
 			case SPAWN:
-
+				spawn_process(args[1]);
 				break;
 
 			case EXEC:
-
+				exec_process(args[1]);
 				break;
 
-			case KILL:
-
+			case KILL: ;
+				int arg_pid;
+				sprintf(args[1], "%i", &arg_pid);
+				kill_process(arg_pid);
 				break;
 
 			case HELP:
-
+				show_help();
 				break;
 
 			case QUIT:
-
+				end_ncurses();
+				exit(0);
 				break;
 	
 		}
 
 	} else if (c_code == -1) {
 	
-	} else {
+		sprintf(errstr, "Error: \"%s\" is not a valid command.", args[0]);	
+
+	} 
 	
-	}
+	free(args);	
 
 	/* Reset command buffer and pointer */
 	memset(comm, 0, sizeof(comm));
 	comm_ptr = 0;	
 
+	errstr = NULL;
 }
 
 
@@ -372,24 +451,19 @@ int main() {
 				case KEY_DC:
 				case KEY_BACKSPACE:
 					
-					if (comm_ptr != 0) {
-						
-						comm_ptr = comm_ptr > 0 ? comm_ptr - 1 : 0;
-						comm[comm_ptr] = '\0';
-
-					}
+					if (comm_ptr > 0) comm[comm_ptr - 1] = '\0';
 
 					break;
 
 				/* If character is enter, parse command and execute */
 				case 10:
 				case KEY_ENTER:
-					command();
+					if (comm_ptr > 0) exec_command();
 					break;
 
-				/* Otherwise, add character to buffer if buffer isnt full */
+				/* Else add character to buffer if buffer isnt full */
 				default:
-					if (comm_ptr < (sizeof(comm)))
+					if (comm_ptr < (sizeof(comm) - 1))
 						comm[comm_ptr++] = (char)ch;
 			
 			} 
