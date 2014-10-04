@@ -80,20 +80,42 @@ void exec_process(char *filename) {
 }
 
 /*
+ * block_process
+ *
+ * Sets process state to BLOCKED. Blocks process if currently running.
+ *
+ * Takes process id as argument.
+ *
+ */
+
+
+/*
+ * run_process
+ *
+ * Sets process state to READY. Puts process at end of ready queue.
+ *
+ * Takes process id as argument.
+ *
+ */
+
+
+
+/*
  * kill_process
  *
- * Kills process from scheduling list.
+ * Kills process from scheduling list. Takes process id as argument.
  *
  */
 
 void kill_process(int pid) {
 
 	pnode *tmp = pnode_get_node_by_pid(pid);
-	int tmppid = tmp->pid;
 
 	/* If process is found, adjust list and destroy process */
 	if (tmp) {
 		
+		int tmppid = tmp->pid;
+
 		if (head != tail) {
 		
 			/*

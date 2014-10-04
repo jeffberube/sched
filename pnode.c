@@ -71,7 +71,8 @@ pnode* pnode_get_node_by_pid(int pid) {
 
 	pnode *tmp = head;
 
-	while(head->next && head->next->pid != pid) tmp = head->next;
+	while(tmp->next && tmp->next != head && tmp->next->pid != pid) tmp = head->next;
+	if (tmp->pid != pid) tmp = NULL;
 
 	return tmp;
 

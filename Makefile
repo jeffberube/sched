@@ -1,13 +1,13 @@
 CC = gcc
-OBJ = sched.o ui.o pnode.o proc.o
-FLAGS = -Wall -ggdb -std=c99 -o
+OBJ = sched.o ui.o pnode.o proc.o comm.o
+FLAGS = -Wall -std=c99 -g -o
 LIB = -lncurses
 
 sched: $(OBJ)
 	$(CC) $(OBJ) $(LIB) $(FLAGS) $@
 
 .c.o:
-	$(CC) -c $<
+	$(CC) -g -c $<
 
 clean:
 	rm *.o sched

@@ -37,18 +37,9 @@
 #include "pnode.h"
 #include "ui.h"
 #include "proc.h"
-
-#define SPAWN		1
-#define EXEC		2
-#define KILL		3
-#define HELP		4
-#define QUIT		5
-
-typedef enum status {on, off} status;
+#include "comm.h"
 
 int pid, running_pid, fd[2];
-status flag = on;
-bool alarm_set = false;
 
 /* Signal handling variables */
 struct sigaction newhandler, oldhandler;
@@ -63,6 +54,7 @@ int ncols = 80, nrows = 24;
 /* Command buffer */
 char comm[64] = {0};
 int comm_ptr = 0;
+char args[2][64] = {0};
 
 /* Error line buffer */
 char *errstr;
@@ -99,9 +91,7 @@ void log_add_line(char *buffer) {
  *
  * Runs next process in process table. If no processes are queued, run idle process. 
  *
- * Arguments:
- *
- * (int)code: 	Contains signal code
+ * NB: code argument is passed by OS on signal
  *
  */
 
@@ -161,212 +151,6 @@ void setup_clock_int() {
 }
 
 /*
- * parse_command()
- *
- * Parses first word in string until it reaches a space character then
- * compares to list of valid commands.
- *
- * Returns a constant corresponding to the command code or -1 if an error occured
- *
- */
-
-int validate_command(char *command) {
-
-	char cb[64] = {0};
-	char ch;
-
-	int i = 0;
-
-	/* Iterate through and put command in cb in lowercase */
-	while ((ch = *(command + i)) != 0) {
-		
-		cb[i++] = tolower(ch);
-
-	}
-
-	if (strcmp(cb, "spawn")) return SPAWN;
-	
-	else if (strcmp(cb, "exec")) return EXEC;
-	
-	else if (strcmp(cb, "kill")) return KILL;
-	
-	else if (strcmp(cb, "help")) return HELP;
-	
-	else if (strcmp(cb, "quit")) return QUIT;
-	
-	else return -1;
-
-
-}
-
-/*
- * parse_param()
- *
- * Parses and validates parameter after command. 
- *
- * Returns 1 on success, 0 on error.
- *
- */
-
-int validate_param(int c_code, char *param) {
-
-	switch (c_code) {
-	
-		case SPAWN: ;
-			
-			/* Test string length. Max length is 8 characters */
-			int i = 0;
-			
-			while (*(param + i) != 0) i++;
-			
-			if (i <= 8) return 1;
-			else {
-			
-				errstr = 
-				"Error: Maximum process name length is 8 characters";
-				
-				return 0;	
-			}
-			
-			break;
-
-		case EXEC:
-
-			break;
-
-		case KILL: ;
-
-			/* Parse string to int */
-			int arg_pid;
-
-			/* If cannot parse parameter to int */
-			if (sscanf(param, "%i", &arg_pid) != 1) {
-			
-				sprintf(errstr, "Error: \"%s\" is not a valid number.",
-						param);
-
-				return 0;
-
-			/* If cannot find pid in process list */
-			} else if (!pnode_get_node_by_pid(arg_pid)) {
-						
-				sprintf(errstr,	"Error: Could not find process %d.",
-						arg_pid);
-			
-			/* Else success */
-			} else return 1;
-
-			break;
-		
-		default:
-			return 1;
-			break;
-	}
-
-}
-
-/*
- * parse_command()
- *
- * Splits command string on spaces and returns pointer to array of strings
- *
- */
-
-char **parse_command() {
-
-	/* Variables to parse string into array */
-	char **parsed = NULL;
-	char *p = strtok(comm, " ");
-	int spaces = 0, i;
-
-	/* Split string in comm buffer and put in array parsed */
-	while (p) {
-		
-		/* Resize parsed to accept new pointer */
-		parsed = realloc(parsed, sizeof(char *) * ++spaces);
-
-		/* If realloc failed, exit function and display error in log */
-		if (parsed == NULL) {
-			log_add_line("Could not parse command. Please try again.");
-			return;
-		}
-
-		/* Add pointer to string to parsed */
-		parsed[spaces - 1] = p;
-		
-		/* Keep reading from where last strtok call left off */
-		p = strtok(NULL, " ");
-
-	}
-
-	/* Add final NULL pointer to find end of array */
-	parsed = realloc(parsed, sizeof(char *) * ++spaces);
-	parsed[spaces] = NULL;
-
-	return parsed;
-
-}
-
-/*
- * exec_command()
- *
- * Tries to parse and execute the command sitting on the command line
- *
- */
-
-void exec_command() {
-
-	int c_code;
-	char **args = parse_command();
-
-	c_code = validate_command(args[0]);
-
-	if (c_code != -1 && validate_param(c_code, args[1])) {
-
-		switch (c_code) {
-	
-			case SPAWN:
-				spawn_process(args[1]);
-				break;
-
-			case EXEC:
-				exec_process(args[1]);
-				break;
-
-			case KILL: ;
-				int arg_pid;
-				sprintf(args[1], "%i", &arg_pid);
-				kill_process(arg_pid);
-				break;
-
-			case HELP:
-				show_help();
-				break;
-
-			case QUIT:
-				end_ncurses();
-				exit(0);
-				break;
-	
-		}
-
-	} else if (c_code == -1) {
-	
-		sprintf(errstr, "Error: \"%s\" is not a valid command.", args[0]);	
-
-	} 
-	
-	free(args);	
-
-	/* Reset command buffer and pointer */
-	memset(comm, 0, sizeof(comm));
-	comm_ptr = 0;	
-
-	errstr = NULL;
-}
-
-
-/*
  * Main program
  *
  */
@@ -415,11 +199,10 @@ int main() {
 		/* Setup idle process */
 		idle_proc = pnode_create(pid, "idle");
 		
-		running_pid = pid;
+		/* Malloc error string buffer */
+		errstr = malloc(64 * sizeof(char));
 
-		int a = spawn_process("proc_a");
-		a = spawn_process("proc_b");
-		a = spawn_process("proc_c");
+		running_pid = pid;
 
 		next(0);	
 
@@ -435,6 +218,8 @@ int main() {
 				log_add_line(message);
 			}
 			 
+			keypad(stdscr, true);
+
 			/* Poll to see if there is a character waiting in the buffer */
 			ch = getch();
 
@@ -442,22 +227,21 @@ int main() {
 			
 				/* If no character in buffer */
 				case ERR: 
-					
+				case 255:		
 					break;
 
 				/* If character is backspace */
 				case 7:
-				case 127:
-				case KEY_DC:
+				//case 127:
+				//case KEY_DC:
 				case KEY_BACKSPACE:
-					
-					if (comm_ptr > 0) comm[comm_ptr - 1] = '\0';
-
+		
+					if (comm_ptr > 0) comm[--comm_ptr] = '\0';
 					break;
 
 				/* If character is enter, parse command and execute */
-				case 10:
-				case KEY_ENTER:
+				case '\n':
+				//case KEY_ENTER:
 					if (comm_ptr > 0) exec_command();
 					break;
 
