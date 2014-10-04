@@ -35,6 +35,10 @@ int validate_command() {
 	
 	else if (!strcmp(cb, "exec")) return EXEC;
 	
+	else if (!strcmp(cb, "block")) return BLOCK;
+
+	else if (!strcmp(cb, "run")) return RUN;
+
 	else if (!strcmp(cb, "kill")) return KILL;
 	
 	else if (!strcmp(cb, "help")) return HELP;
@@ -69,8 +73,7 @@ int validate_param() {
 			if (i <= 8) return 1;
 			else {
 			
-				errstr = 
-				"Error: Maximum process name length is 8 characters";
+				sprintf(errstr, "ERROR: Maximum process name length is 8 characters");
 				
 				return 0;	
 			}
@@ -89,7 +92,7 @@ int validate_param() {
 			/* If cannot parse parameter to int */
 			if (sscanf(args[1], "%i", &arg_pid) != 1) {
 			
-				sprintf(errstr, "Error: \"%s\" is not a valid number.",
+				sprintf(errstr, "ERROR: \"%s\" is not a valid number.",
 						args[1]);
 
 				return 0;
@@ -97,7 +100,7 @@ int validate_param() {
 			/* If cannot find pid in process list */
 			} else if (!pnode_get_node_by_pid(arg_pid)) {
 						
-				sprintf(errstr,	"Error: Could not find process %d.",
+				sprintf(errstr,	"ERROR: Could not find process %d.",
 						arg_pid);
 			
 			/* Else success */
@@ -164,13 +167,10 @@ void exec_command() {
 	char *arg1;
 	
 	/* Reset error string on new command */
-	errstr = NULL;
+	memset(errstr, 0, sizeof(errstr));
 
 	parse_command();
 	c_code = validate_command();
-
-	errstr = (char *)realloc(errstr, strlen(args[0]) + 1);
-	sprintf(errstr, "%i", c_code);
 
 	if (c_code != -1 && validate_param()) {
 
@@ -189,9 +189,17 @@ void exec_command() {
 				exec_process(args[1]);
 				break;
 
+			case BLOCK:
+
+				break;
+
+			case RUN:
+
+				break;
+
 			case KILL: ;
 				int arg_pid;
-				sprintf(args[1], "%i", &arg_pid);
+				sscanf(args[1], "%d", &arg_pid);
 				kill_process(arg_pid);
 				break;
 
@@ -208,7 +216,7 @@ void exec_command() {
 
 	} else if (c_code == -1) {
 	
-		sprintf(errstr, "Error: \"%s\" is not a valid command.", args[0]);	
+		sprintf(errstr, "ERROR: \"%s\" is not a valid command.", args[0]);	
 
 	} 
 	

@@ -47,18 +47,28 @@ int spawn_process(char name[32]) {
 		pnode* proc = pnode_create(pid, name);
 		
 		/* Add process to circular linked list */
+		
+		/* If list is empty */
 		if(!head) {
 		
+			/* Adjust pointers */
 			head = tail = proc;
 			proc->next = proc;
 			proc->prev = proc;
-	
+			
+			/* Block idle process, start new process and reset alarm*/
+			kill(idle_proc->pid, SIGSTOP);
+			kill(proc->pid, SIGCONT);
+			alarm(3);
+
+		/* If list is not empty */
 		} else {
 	
 			tail->next = proc;
 			proc->next = head;
 			proc->prev = tail;
-			tail = tail->next;
+			tail = proc;
+			head->prev = tail;
 			
 		}
 
@@ -77,6 +87,8 @@ int spawn_process(char name[32]) {
 
 void exec_process(char *filename) {
 
+
+
 }
 
 /*
@@ -88,6 +100,11 @@ void exec_process(char *filename) {
  *
  */
 
+void block_process(int pid) {
+
+
+
+}
 
 /*
  * run_process
@@ -98,7 +115,11 @@ void exec_process(char *filename) {
  *
  */
 
+void run_process(int pid) {
 
+
+
+}
 
 /*
  * kill_process
@@ -114,47 +135,57 @@ void kill_process(int pid) {
 	/* If process is found, adjust list and destroy process */
 	if (tmp) {
 		
-		int tmppid = tmp->pid;
+		/* Kill process */
+		kill(tmp->pid, SIGKILL);
 
+		/* If there is more than one node in the list */
 		if (head != tail) {
 		
-			/*
-			 * If head is node to kill, 
-			 * point head to next node and adjust tail pointer
-			 *
-			 */
-
+			/* If head is the node to kill */
 			if (head == tmp) {
-				head = tmp->next;
-				if (head) head->prev = tail;
-			}
+				
+				/* Adjust head and tail pointers */
+				head = head->next;
+				tail->next = head;
+				head->prev = tail;
 
-			/*
-			 *  If node to kill is tail, 
-			 *  point tail to previous node and adjust head pointer
-			 *
-			 */
+				/* In case there is only 2 node in the list */
+				if (head->next == tmp) head->next = head;
 
-			if (tail == tmp) {
+				/* Start next process in line and reset alarm */
+				kill(head->pid, SIGCONT);
+				alarm(3);
+				
+			/* If tail is the node to kill */
+			} else if (tail == tmp) {
+				
+				/* Adjust head and tail pointer */
 				tail = tail->prev;
-				if (tail) tail->next = head;
-			}
-		
-		} else head = tail = NULL;
-	
+				head->prev = tail;
+				tail->next = head;
+
+				if (tail->prev == tmp) tail->prev = tail;
+			} else 
+				tmp->prev->next = tmp->next;
+
+		/* If there is only one node in the list */
+		} else {
+			
+			head = tail = NULL;
+
+			/* Start idle process and reset alarm */
+			kill(idle_proc->pid, SIGCONT);
+			alarm(3);
+
+		}
+			
 		/* Destroy node */
 		pnode_destroy(tmp);
-		kill(tmppid, SIGKILL);
-
-		/* Run next process in line. If list is empty, run idle process. */
-		if (head) kill(head->pid, SIGCONT);
-		else kill(idle_proc->pid, SIGCONT);
 
 	/* If process not found, display error message */
 	} else {
 	
-		char error[] = "";
-		log_add_line(error);
+		sprintf(errstr, "ERROR: Process %d not found.", pid);
 
 	}
 

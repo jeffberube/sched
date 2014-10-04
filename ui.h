@@ -28,6 +28,8 @@
  *
  */
 
+#define _XOPEN_SOURCE_EXTENDED_
+
 #include <stdio.h>
 #include <ncurses.h>
 #include <locale.h>
@@ -48,7 +50,7 @@ extern pnode *head, *tail, *idle_proc;
 extern int ncols, nrows, comm_ptr, lastline, logcount;
 extern char *logtable[128];
 extern char comm[64];
-extern char *errstr;
+extern char errstr[64];
 
 void print_ui();
 

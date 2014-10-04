@@ -9,7 +9,17 @@
  * 	spawn_process	Spawns a new process in the scheduler. Adds
  * 			process to the process table.
  *
+ * 	exec_process	Runs executable within sched directory.
+ *
+ * 	block_process	Sets process state to BLOCKED. Stops process
+ * 			if running.
+ *
+ * 	run_process	Sets process state to READY. Puts process
+ * 			at end of the ready queue.
+ *
  * 	kill_process	Kills a process in the process table.
+ *
+ *
  */
 
 #include <stdio.h>
@@ -21,10 +31,15 @@
 	#include "pnode.h"
 #endif
 
-extern pnode *head, *tail, *idle_proc;
 extern int running_pid, pid, fd[2];
 
 int spawn_process(char name[32]);
+
+void exec_proces(char *filename);
+
+void block_process(int pid);
+
+void run_process(int pid);
 
 void kill_process(int pid);
 

@@ -19,15 +19,16 @@ pnode* pnode_create(int pid, char* name) {
 	pnode *node = malloc(sizeof(pnode));
 	node->pid = pid;
 	node->name = name;
+	node->state = READY;
 
 	return node;
 
 }
 
 /*
- * pnode_destroy_by_name
+ * pnode_destroy
  *
- * Find and destroy a node using its name. Returns -1 if node couldn't be found.
+ * Destroy node pointed to in argument. Returns -1 if node is null.
  *
  */
 
@@ -42,22 +43,6 @@ int pnode_destroy(pnode *node) {
 
 }
 
-/*
- * pnode_get_node_by_name
- *
- * Iterates through processes and returns process with corresponding name if found,
- * otherwise returns NULL pointer. Must test for NULL.
- *
- */
-
-pnode* pnode_get_node_by_name(char name[32]) {
-	
-	pnode *tmp = head;
-
-	while(tmp->next && tmp->next->name != name) tmp = tmp->next;	
-	
-	return tmp;
-}
 
 /*
  * pnode_get_node_by_pid
@@ -71,7 +56,9 @@ pnode* pnode_get_node_by_pid(int pid) {
 
 	pnode *tmp = head;
 
-	while(tmp->next && tmp->next != head && tmp->next->pid != pid) tmp = head->next;
+	while (tmp->next && tmp->pid != pid && tmp->next != head) 
+		tmp = tmp->next;
+
 	if (tmp->pid != pid) tmp = NULL;
 
 	return tmp;

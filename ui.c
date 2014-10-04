@@ -6,11 +6,6 @@
  *
  */
 
-#define _XOPEN_SOURCE_EXTENDED
-
-#include <stdio.h>
-#include <ncurses.h>
-
 #include "ui.h"
 
 /*

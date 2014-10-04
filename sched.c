@@ -57,7 +57,7 @@ int comm_ptr = 0;
 char args[2][64] = {0};
 
 /* Error line buffer */
-char *errstr;
+char errstr[64] = {0};
 
 /*
  * log_add_line
@@ -199,9 +199,6 @@ int main() {
 		/* Setup idle process */
 		idle_proc = pnode_create(pid, "idle");
 		
-		/* Malloc error string buffer */
-		errstr = malloc(64 * sizeof(char));
-
 		running_pid = pid;
 
 		next(0);	
