@@ -40,38 +40,15 @@ int spawn_process(char name[32]) {
 
 	/* If parent process */
 	} else {
-	
+
+		/* Block new process */	
 		kill(pid, SIGSTOP);
 
 		/* Create new process node */
-		pnode* proc = pnode_create(pid, name);
+		pnode *proc = pnode_create(pid, name);
 		
 		/* Add process to circular linked list */
-		
-		/* If list is empty */
-		if(!head) {
-		
-			/* Adjust pointers */
-			head = tail = proc;
-			proc->next = proc;
-			proc->prev = proc;
-			
-			/* Block idle process, start new process and reset alarm*/
-			kill(idle_proc->pid, SIGSTOP);
-			kill(proc->pid, SIGCONT);
-			alarm(3);
-
-		/* If list is not empty */
-		} else {
-	
-			tail->next = proc;
-			proc->next = head;
-			proc->prev = tail;
-			tail = proc;
-			head->prev = tail;
-			
-		}
-
+		pnode_add_ready(proc);
 
 	}
 
@@ -87,7 +64,26 @@ int spawn_process(char name[32]) {
 
 void exec_process(char *filename) {
 
+	pid = 0;
+	pid = fork();
 
+	/* If child process */
+	if (!pid) {
+
+
+	
+	} else {
+		
+		/* Block new process */
+		kill(pid, SIGSTOP);
+
+		/* Create process node */
+		pnode *proc = pnode_create(pid, filename);
+
+		/* Add process to circular linked list */
+		pnode_add_ready(proc);
+		
+	}
 
 }
 
@@ -102,7 +98,45 @@ void exec_process(char *filename) {
 
 void block_process(int pid) {
 
+	pnode *proc = pnode_get_node_by_pid(pid);
 
+	/* If process was found */
+	if (proc) {
+		
+		/* If process isn't blocked */
+		if (proc->state != BLOCKED) {
+			
+			int head_is_tail = head == tail ? 1 : 0;
+			int head_is_proc = head == proc ? 1 : 0;
+
+			/* Stop process */
+			kill(proc->pid, SIGSTOP);
+
+			/* Remove from ready queue and put in blocked queue */
+			pnode_remove_ready(proc);
+			pnode_add_blocked(proc);
+
+			/* More than one process in ready queue and blocking head */
+			if (!head_is_tail && head_is_proc) {
+			
+				kill(head->pid, SIGCONT);
+				alarm(3);
+
+			/* Only one process in list, start idle */
+			} else {
+
+				kill(idle_proc->pid, SIGCONT);
+				alarm(3);
+			
+			}
+
+		/* If process is already blocked */
+		} else 
+			sprintf(errstr, "Process %d is already blocked.", pid);
+
+	/* Process was not found */
+	} else 
+		sprintf(errstr, "ERROR: Process %d not found.", pid); 
 
 }
 
@@ -117,6 +151,22 @@ void block_process(int pid) {
 
 void run_process(int pid) {
 
+	pnode *proc = pnode_get_node_by_pid(pid);
+
+	/* If process was found */
+	if (proc) {
+	
+		/* If process isn't ready */
+		if (proc->state != READY) {
+
+			pnode_remove_blocked(proc);
+			pnode_add_ready(proc);
+
+		} else
+			sprintf(errstr, "Process %d is already runnable.", pid);
+
+	} else
+		sprintf(errstr, "ERROR: Process %d not found.", pid);
 
 
 }
@@ -134,45 +184,27 @@ void kill_process(int pid) {
 
 	/* If process is found, adjust list and destroy process */
 	if (tmp) {
-		
+
+		/* Store value before removing node from queue */
+		int head_is_tail = head == tail ? 1 : 0;
+		int head_is_tmp = head == tmp ? 1 : 0;
+
+		/* Remove node from ready queue */
+		pnode_remove_ready(tmp);
+  
 		/* Kill process */
 		kill(tmp->pid, SIGKILL);
 
-		/* If there is more than one node in the list */
-		if (head != tail) {
+		/* More than one ready process and head is process to kill */
+		if (!head_is_tail && head_is_tmp) {
 		
-			/* If head is the node to kill */
-			if (head == tmp) {
-				
-				/* Adjust head and tail pointers */
-				head = head->next;
-				tail->next = head;
-				head->prev = tail;
-
-				/* In case there is only 2 node in the list */
-				if (head->next == tmp) head->next = head;
-
-				/* Start next process in line and reset alarm */
-				kill(head->pid, SIGCONT);
-				alarm(3);
-				
-			/* If tail is the node to kill */
-			} else if (tail == tmp) {
-				
-				/* Adjust head and tail pointer */
-				tail = tail->prev;
-				head->prev = tail;
-				tail->next = head;
-
-				if (tail->prev == tmp) tail->prev = tail;
-			} else 
-				tmp->prev->next = tmp->next;
+			/* Start next process in line and reset alarm */
+			kill(head->pid, SIGCONT);
+			alarm(3);
 
 		/* If there is only one node in the list */
 		} else {
 			
-			head = tail = NULL;
-
 			/* Start idle process and reset alarm */
 			kill(idle_proc->pid, SIGCONT);
 			alarm(3);
@@ -183,11 +215,8 @@ void kill_process(int pid) {
 		pnode_destroy(tmp);
 
 	/* If process not found, display error message */
-	} else {
-	
+	} else
 		sprintf(errstr, "ERROR: Process %d not found.", pid);
-
-	}
 
 }
 

@@ -6,6 +6,9 @@
  *
  * @Functions:
  *
+ * 	add_process_ready Adds process to ready queue.
+ *
+ *
  * 	spawn_process	Spawns a new process in the scheduler. Adds
  * 			process to the process table.
  *
@@ -32,6 +35,8 @@
 #endif
 
 extern int running_pid, pid, fd[2];
+
+void add_process_ready(pnode *proc);
 
 int spawn_process(char name[32]);
 

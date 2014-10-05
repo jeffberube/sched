@@ -32,7 +32,7 @@ void print_ui() {
 	mvprintw(VPADDING, HPADDING, "Output: \n");	
 
 	/* Print label "Process Table:" */
-	mvprintw(VPADDING, ncols * 0.6 - HPADDING, "Process Table (PID, Name): \n");
+	mvprintw(VPADDING, ncols * 0.6 - HPADDING, "Process Table (PID, Name, State):");
 
 	/* Define process table x coordinate */
 	int pt_x = ncols * 0.6 - (2 * HPADDING);
@@ -150,14 +150,16 @@ void print_proc_table() {
 	/* Maintains which row to print to */
 	int i = 0;
 
-	/* If there is a process in the list */
+	/* Print ready queue */
 	if (head) {
 		
+		/* Print PID, name and state */
 		mvprintw(y + i, x, "%d\t%s", head->pid, head->name);	
+		mvprintw(y + i, ncols - HPADDING - 7, "RUNNING");
 
 		i++;
 
-		/* If there is more than one process in the list */
+		/* If there is more than one process in ready queue */
 		if (head->next && head != tail) {
 		
 			pnode *tmp = head;
@@ -166,7 +168,9 @@ void print_proc_table() {
 			
 				tmp = tmp->next;
 
+				/* Print PID, name and state */
 				mvprintw(y + i, x, "%d\t%s", tmp->pid, tmp->name);
+				mvprintw(y + i, ncols - HPADDING - 5, "READY");
 
 				i++;
 			}
@@ -177,8 +181,48 @@ void print_proc_table() {
 
 	/* Print idle process */
 	attron(COLOR_PAIR(3));
+	
 	mvprintw(y + i, x, "%d\tIdle\n", idle_proc->pid);
+	
 	attroff(COLOR_PAIR(3));
+
+	/* Print idle state */
+	if (!head) mvprintw(y + i, ncols - HPADDING - 7, "RUNNING");
+	else mvprintw(y + i, ncols - HPADDING - 5, "READY");
+
+	i++;
+
+	/* Print blocked queue */
+	attron(COLOR_PAIR(5));
+
+	if (blocked) {
+	
+		/* Print PID, name and state */
+		mvprintw(y + i, x, "%d\t%s", blocked->pid, blocked->name);
+		mvprintw(y + i, ncols - HPADDING - 7, "BLOCKED");
+
+		i++;
+
+		/* If there is more than one blocked process */
+		if (blocked->next) {
+
+			pnode *tmp = blocked;
+
+			while (tmp->next) {
+			
+				tmp = tmp->next;
+
+				mvprintw(y + i, x, "%d\t%s", tmp->pid, tmp->name);
+				mvprintw(y + i, ncols - HPADDING - 7, "BLOCKED");
+				i++;
+
+			}
+
+		}
+
+	}	
+
+	attroff(COLOR_PAIR(5));
 
 }
 
@@ -236,6 +280,7 @@ void init_ncurses() {
 	init_pair(2, COLOR_RED, COLOR_BLACK);
 	init_pair(3, COLOR_CYAN, COLOR_BLACK);
 	init_pair(4, COLOR_BLUE, COLOR_BLACK);
+	init_pair(5, COLOR_YELLOW, COLOR_BLACK);
 
 }
 

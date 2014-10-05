@@ -163,7 +163,7 @@ void parse_command() {
 
 void exec_command() {
 
-	int c_code;
+	int c_code, arg_pid;
 	char *arg1;
 	
 	/* Reset error string on new command */
@@ -171,6 +171,8 @@ void exec_command() {
 
 	parse_command();
 	c_code = validate_command();
+
+
 
 	if (c_code != -1 && validate_param()) {
 
@@ -189,16 +191,17 @@ void exec_command() {
 				exec_process(args[1]);
 				break;
 
-			case BLOCK:
-
+			case BLOCK: ;
+				sscanf(args[1], "%d", &arg_pid);
+				block_process(arg_pid);
 				break;
 
-			case RUN:
-
+			case RUN: ;
+				sscanf(args[1], "%d", &arg_pid);
+				run_process(arg_pid);
 				break;
 
 			case KILL: ;
-				int arg_pid;
 				sscanf(args[1], "%d", &arg_pid);
 				kill_process(arg_pid);
 				break;

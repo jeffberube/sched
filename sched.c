@@ -46,7 +46,7 @@ struct sigaction newhandler, oldhandler;
 sigset_t sig;
 
 /* Process table variables */
-pnode *head, *tail, *idle_proc;
+pnode *head, *tail, *blocked, *idle_proc;
 
 /* Terminal geometry variables. Updated in init_ncurses() */
 int ncols = 80, nrows = 24;
