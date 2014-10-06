@@ -206,37 +206,47 @@ void kill_process(int pid) {
 	/* If process is found, adjust list and destroy process */
 	if (tmp) {
 
-		/* Store value before removing node from queue */
-		int head_is_tail = head == tail ? 1 : 0;
-		int head_is_tmp = head == tmp ? 1 : 0;
-
-		/* Remove node from ready queue */
-		pnode_remove_ready(tmp);
-  
-		/* Kill process */
-		kill(tmp->pid, SIGKILL);
-
-		/* More than one ready process and head is process to kill */
-		if (!head_is_tail) {
+		/* If process is in ready queue */
+		if (tmp->state == READY) {
 		
-			/* If head is process to be killed */
-			if (head_is_tmp) {
+			/* Store value before removing node from queue */
+			int head_is_tail = head == tail ? 1 : 0;
+			int head_is_tmp = head == tmp ? 1 : 0;
 
-				/* Start next process in line and reset alarm */
-				kill(head->pid, SIGCONT);
+			/* Remove node from ready queue */
+			pnode_remove_ready(tmp);
+	  
+			/* Kill process */
+			kill(tmp->pid, SIGKILL);
+
+			/* More than one ready process and head is process to kill */
+			if (!head_is_tail) {
+		
+				/* If head is process to be killed */
+				if (head_is_tmp) {
+
+					/* Start next process in line and reset alarm */
+					kill(head->pid, SIGCONT);
+					alarm(3);
+
+				}
+
+			/* If there is only one node in the list */
+			} else {
+				
+				/* Start idle process and reset alarm */
+				kill(idle_proc->pid, SIGCONT);
 				alarm(3);
 
 			}
-
-		/* If there is only one node in the list */
+		
+		/* If process is in blocked queue */ 
 		} else {
-			
-			/* Start idle process and reset alarm */
-			kill(idle_proc->pid, SIGCONT);
-			alarm(3);
-
+		
+			pnode_remove_blocked(tmp);
+			kill(tmp->pid, SIGKILL);
 		}
-			
+
 		/* Destroy node */
 		pnode_destroy(tmp);
 

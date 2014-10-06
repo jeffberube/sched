@@ -94,7 +94,8 @@ void history_get_prev() {
 
 	memset(comm, 0, sizeof(comm));
 	strcpy(comm, !hist_ptr ? history[0] : history[--hist_ptr]);
-	
+	comm_ptr = strlen(comm);
+
 }
 
 /*
@@ -108,6 +109,7 @@ void history_get_next() {
 
 	memset(comm, 0, sizeof(comm));
 	strcpy(comm, hist_count == hist_ptr + 1 ? "" : history[++hist_ptr]);
+	comm_ptr = strlen(comm);
 
 }
 
