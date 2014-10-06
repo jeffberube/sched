@@ -17,7 +17,100 @@
 
 void show_help() {
 
+	
+
 }
+
+/*
+ * log_add_line
+ *
+ * Adds a line to the log table
+ *
+ */
+
+void log_add_line(char *buffer) {
+
+	/* Create a string and copy buffer into it */
+	char* message = malloc(strlen(buffer) + 1);
+
+	memset(message, 0, strlen(buffer) + 1);
+	strcpy(message, buffer);
+	
+	/* If logtable is full, free previous string and assign new one */
+	if (logcount == (nrows - HEADER - FOOTER) - 1) free(logtable[lastline]);
+	logtable[lastline] = message;
+
+	lastline++;
+
+	lastline = lastline % (nrows - HEADER - FOOTER);
+
+	if (logcount <= (nrows - HEADER - FOOTER) - 1) logcount++;
+
+}
+
+
+/*
+ * history_add
+ *
+ * Adds a command to the history
+ *
+ */
+
+void history_add(char *buffer) {
+
+	/* Create a string to hold command and copy buffer into it */
+	char *last_comm = malloc(strlen(buffer) + 1);
+
+	memset(last_comm, 0, strlen(buffer) + 1);
+	strcpy(last_comm, buffer);
+
+	/* If history table is full, free first element and shift array up 1 */
+	if (hist_count == HIST_MAX) {
+		
+		free(history[0]);
+		
+		int i = 0;
+
+		while (i < hist_count)
+			history[i] = history[i + 1];
+
+		history[hist_count] = last_comm;
+
+	/* If history table isn't full, just assign and increase pointer */
+	} else 
+		history[hist_count++] = last_comm;
+
+	hist_ptr = hist_count;
+}
+
+/*
+ * history_get_prev
+ *
+ * Sets command line to one previous from last request
+ *
+ */
+
+void history_get_prev() {
+
+	memset(comm, 0, sizeof(comm));
+	strcpy(comm, !hist_ptr ? history[0] : history[--hist_ptr]);
+	
+}
+
+/*
+ * history_get_next
+ *
+ * Sets command line to one more recent than last request
+ *
+ */
+
+void history_get_next() {
+
+	memset(comm, 0, sizeof(comm));
+	strcpy(comm, hist_count == hist_ptr + 1 ? "" : history[++hist_ptr]);
+
+}
+
 
 /*
  * print_ui()

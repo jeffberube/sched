@@ -1,11 +1,50 @@
 @Author:	Jeff Berube
-@Title:		Scheduler (CS3790 Assignment #1)
-@Description:	Mock process scheduler using signals
+@Title:		sched (CS3790 Assignment #1)
 
-To compile, type 'make' in top directory of project.
+@Description: 	Sched is a fully functional process scheduler implemented
+		using techniques as close as possible to modern kernels.
+		It maintains 2 queues using circular linked lists. It also
+		maintains full information on process state. All the
+		standard output is redirected to a pipe and read into the
+		output window of the scheduler.
 
-To clone this repo, type:
+@Compiling:	To compile, type 'make' in top directory of project.
 
-git clone https://github.com/jeffberube/sched
 
-All code in this repository is copyright Jeff Berube. You may not use, distribute, copy in whole or in part any of this code without the explicit written consent of Jeff Berube.
+@Git:		To clone this repo, type:
+
+		git clone https://github.com/jeffberube/sched.git
+
+
+@Commands:	The scheduler has an array of commands that can be inputed
+		to it.
+
+
+spawn <processname>	Spawns a new process that outputs
+			'processname' to stdout.
+
+exec <filename>		Forks, duplicates stdout to pipe and
+			execs filename located in current directory.
+			Note that if the program executed doesn't
+			flush its output, not output might appear
+			in the output window while it's running.
+
+kill <pid>		Kills a process using its pid.
+
+block <pid>		Removes a process from ready queue and puts
+			it in the blocked queue. Use command
+			run <pid> to get process back in ready queue.
+
+run <pid>		Takes a process out of the blocked queue and
+			puts it back in the ready queue.
+
+help			Shows the help window with all the commands.
+
+quit			Exits scheduler.
+
+	
+
+@Copyright:		All code in this repository is copyright Jeff Berube. 
+			You may not use, distribute, copy in whole or in part 
+			any of this code without the explicit written consent 
+			of Jeff Berube.

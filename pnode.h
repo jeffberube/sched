@@ -42,7 +42,7 @@ struct pnode {
 };
 
 extern pnode *head, *tail, *blocked, *idle_proc;
-extern char errstr[64];
+extern char errstr[128];
 
 pnode* pnode_create(int pid, char *name);
 

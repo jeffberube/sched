@@ -182,10 +182,11 @@ void exec_command() {
 	/* Reset error string on new command */
 	memset(errstr, 0, sizeof(errstr));
 
+	/* Save command in history */
+	history_add(comm);
+
 	parse_command();
 	c_code = validate_command();
-
-
 
 	if (c_code != -1 && validate_param()) {
 

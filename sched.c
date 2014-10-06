@@ -42,7 +42,7 @@
 int pid, running_pid, fd[2];
 
 /* Signal handling variables */
-struct sigaction newhandler, oldhandler;
+struct sigaction newhandler, oldhandler, resizehandler;
 sigset_t sig;
 
 /* Process table variables */
@@ -56,34 +56,31 @@ char comm[64] = {0};
 int comm_ptr = 0;
 char args[2][64] = {0};
 
+/* Command history */
+char *history[HIST_MAX];
+int hist_ptr = 0, hist_count;
+
 /* Error line buffer */
-char errstr[64] = {0};
+char errstr[128] = {0};
 
-/*
- * log_add_line
- *
- * Adds a line to the log table
- *
- */
-
+/* Output log table */
 char *logtable[128];
 int lastline = 0, logcount = 0;
 
-void log_add_line(char *buffer) {
+/*
+ * winch_handler
+ *
+ * Handles terminal resize
+ *
+ */
 
-	char* message = malloc(sizeof(char) * sizeof(buffer));
+void winch_handler(int code) {
 
-	memset(message, '\0', sizeof(message));
-	strcpy(message, buffer);
+	endwin();
+	refresh();
+	clear();
 
-	logtable[lastline] = message;
-
-	lastline++;
-
-	lastline = lastline % (nrows - HEADER - FOOTER);
-
-	if (logcount <= (nrows - HEADER - FOOTER) - 1) logcount++;
-
+	getmaxyx(stdscr, nrows, ncols);
 }
 
 /* 
@@ -136,6 +133,22 @@ void next(int code) {
 	alarm(3);
 
 }
+
+/*
+ * setup_winch_handler
+ *
+ * Sets up signal handler for terminal resize
+ *
+ */
+
+void setup_winch_handler() {
+
+	memset(&resizehandler, 0, sizeof(struct sigaction));
+	resizehandler.sa_handler = winch_handler;
+	sigaction(SIGWINCH, &resizehandler, NULL);
+
+}
+
 
 /*
  * setup_clock_int()
@@ -199,8 +212,9 @@ int main() {
 	/* Else this is parent process, this is scheduler */
 	} else {
 
-		/* Initiate gui */
+		/* Initiate gui and setup signal handler for terminal resize*/
 		init_ncurses();
+		setup_winch_handler();
 
 		/* Setup clock interrupt handler */
 		setup_clock_int();
@@ -243,9 +257,16 @@ int main() {
 
 					break;
 
+				/* On key up, show previous command in history */
 				case KEY_UP:
+
+					history_get_prev();
+					break;
+
+				/* On key down, show next command in history */
 				case KEY_DOWN:
 
+					history_get_next();
 					break;
 
 				/* If character is backspace */
@@ -265,7 +286,8 @@ int main() {
 
 				/* Else add character to buffer if buffer isnt full */
 				default:
-					if (comm_ptr < (sizeof(comm) - 1))
+					if (comm_ptr < (sizeof(comm) - 1) &&
+							ch >= 32 && ch <= 126)
 						comm[comm_ptr++] = (char)ch;
 			
 			} 

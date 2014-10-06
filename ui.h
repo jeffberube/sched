@@ -45,12 +45,15 @@
 #define	HEADER		3
 #define FOOTER		3
 
+#define HIST_MAX	10
+
 extern pnode *head, *tail, *idle_proc;
 
-extern int ncols, nrows, comm_ptr, lastline, logcount;
+extern int ncols, nrows, hist_ptr, hist_count, comm_ptr, lastline, logcount;
+extern char *history[HIST_MAX];
 extern char *logtable[128];
 extern char comm[64];
-extern char errstr[64];
+extern char errstr[128];
 
 void print_ui();
 

@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern char errstr[64];
+extern char errstr[128];
 extern char comm[64];
 extern char args[2][64];
 extern int comm_ptr;
