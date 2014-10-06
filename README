@@ -28,6 +28,7 @@ exec <filename>		Forks, duplicates stdout to pipe and
 			Note that if the program executed doesn't
 			flush its output, not output might appear
 			in the output window while it's running.
+			'dummy' is included as a test program.			
 
 kill <pid>		Kills a process using its pid.
 
