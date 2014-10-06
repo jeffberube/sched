@@ -17,7 +17,76 @@
 
 void show_help() {
 
+	WINDOW *helpscr;
+
+	int help_xmax = ncols * 0.8;
+	int help_ymax = nrows * 0.8;
+
+	helpscr = newwin(help_ymax, help_xmax, 
+				(nrows - help_ymax) / 2, (ncols - help_xmax) / 2);
+
+	/* Print window corners */
+	wattron(helpscr, COLOR_PAIR(4));
 	
+	mvwaddch(helpscr, 0, 0, ACS_ULCORNER);
+	waddch(helpscr, ACS_HLINE);
+	
+	mvwaddch(helpscr, 0, help_xmax - 2, ACS_HLINE);
+	waddch(helpscr, ACS_URCORNER);
+
+	mvwaddch(helpscr, help_ymax - 1, 0, ACS_LLCORNER);
+	waddch(helpscr, ACS_HLINE);
+
+	mvwaddch(helpscr, help_ymax - 1, help_xmax - 2, ACS_HLINE);
+	waddch(helpscr, ACS_LRCORNER);
+
+	wattroff(helpscr, COLOR_PAIR(4));
+
+	/* Print help label */
+	mvwprintw(helpscr, 0, (help_xmax / 2) - 2, "HELP");
+
+	/* Print commands */
+	int desc_x = help_xmax * 0.3;
+
+	mvwprintw(helpscr, 2, 2, "Here is a list of all the commands: ");
+	
+	mvwprintw(helpscr, 4, 4, "spawn <name>");
+	mvwprintw(helpscr, 4, desc_x, "Spawns a new process. Outputs <name>.");
+
+	mvwprintw(helpscr, 7, 4, "exec <file>");
+	mvwprintw(helpscr, 7, desc_x, "Exec program in directory. Pipes output.");
+
+	mvwprintw(helpscr, 10, 4, "kill <pid>");
+	mvwprintw(helpscr, 10, desc_x, "Kills process using pid.");
+	
+	mvwprintw(helpscr, 13, 4, "block <pid>");
+	mvwprintw(helpscr, 13, desc_x, "Puts process in blocked queue.");
+
+	mvwprintw(helpscr, 16, 4, "run <pid>");
+	mvwprintw(helpscr, 16, desc_x, "Puts process back in ready queue.");
+
+	mvwprintw(helpscr, 19, 4, "quit");
+	mvwprintw(helpscr, 19, desc_x, "Quits.");
+
+	mvwprintw(helpscr, 22, 4, "help");
+	mvwprintw(helpscr, 22, desc_x, "This window.");
+
+	/* Print bottom label */
+	mvwprintw(helpscr, help_ymax - 1, (help_xmax / 2) - 17, 
+			"Press any key to close this window");
+
+	wrefresh(helpscr);
+
+	/* Accept keystrokes in this window */
+	keypad(helpscr, TRUE);
+	char ch;
+
+	/* Block until user presses key */
+	while ((ch = getch()) == ERR || ch == 255); 
+
+	/* Turn off keystrokes and kill window */
+	keypad(helpscr, FALSE);
+	delwin(helpscr);
 
 }
 
@@ -58,29 +127,34 @@ void log_add_line(char *buffer) {
 
 void history_add(char *buffer) {
 
-	/* Create a string to hold command and copy buffer into it */
-	char *last_comm = malloc(strlen(buffer) + 1);
+	if (buffer) {
 
-	memset(last_comm, 0, strlen(buffer) + 1);
-	strcpy(last_comm, buffer);
+		/* Create a string to hold command and copy buffer into it */
+		char *last_comm = malloc(strlen(buffer) + 1);
 
-	/* If history table is full, free first element and shift array up 1 */
-	if (hist_count == HIST_MAX) {
-		
-		free(history[0]);
-		
-		int i = 0;
+		memset(last_comm, 0, strlen(buffer) + 1);
+		strcpy(last_comm, buffer);
 
-		while (i < hist_count)
-			history[i] = history[i + 1];
+		/* If history table is full, free first element and shift array up 1 */
+		if (hist_count == HIST_MAX) {
+			
+			free(history[0]);
+			
+			int i = 0;
+	
+			while (i < hist_count)
+				history[i] = history[i + 1];
+	
+			history[hist_count] = last_comm;
+	
+		/* If history table isn't full, just assign and increase pointer */
+		} else 
+			history[hist_count++] = last_comm;
+	
+		hist_ptr = hist_count;
 
-		history[hist_count] = last_comm;
+	}
 
-	/* If history table isn't full, just assign and increase pointer */
-	} else 
-		history[hist_count++] = last_comm;
-
-	hist_ptr = hist_count;
 }
 
 /*
@@ -93,7 +167,7 @@ void history_add(char *buffer) {
 void history_get_prev() {
 
 	memset(comm, 0, sizeof(comm));
-	strcpy(comm, !hist_ptr ? history[0] : history[--hist_ptr]);
+	if (hist_count) strcpy(comm, !hist_ptr ? history[0] : history[--hist_ptr]);
 	comm_ptr = strlen(comm);
 
 }
@@ -108,7 +182,7 @@ void history_get_prev() {
 void history_get_next() {
 
 	memset(comm, 0, sizeof(comm));
-	strcpy(comm, hist_count == hist_ptr + 1 ? "" : history[++hist_ptr]);
+	if (hist_count) strcpy(comm, hist_count <= hist_ptr + 1 ? "" : history[++hist_ptr]);
 	comm_ptr = strlen(comm);
 
 }

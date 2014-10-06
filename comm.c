@@ -2,7 +2,7 @@
  * @Author:	Jeff Berube
  * @Title:	comm.c
  *
- * @Description: Contains all the command processing functions
+ * @Description: Contains all the command execution functions
  *
  */
 
@@ -187,7 +187,12 @@ void exec_command() {
 
 	parse_command();
 	c_code = validate_command();
+	
+	/* Reset command buffer and pointer */
+	memset(comm, 0, sizeof(comm));
+	comm_ptr = 0;
 
+	/* Execute command */
 	if (c_code != -1 && validate_param()) {
 
 		switch (c_code) {
@@ -236,13 +241,11 @@ void exec_command() {
 		sprintf(errstr, "ERROR: \"%s\" is not a valid command.", args[0]);	
 
 	} 
-	
-	/* Reset command buffer and pointer */
-	memset(comm, 0, sizeof(comm));
+
+	/* Reset arguments array */
 	memset(args[0], 0, sizeof(args[0]));
 	memset(args[1], 0, sizeof(args[1]));
-	comm_ptr = 0;
-
+	
 }
 
 

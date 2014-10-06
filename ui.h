@@ -12,19 +12,27 @@
  *
  * @Functions:
  *
- * 	print_ui()	Prints all ui elements like labels and lines
+ *	show_help	Shows help window
+ *
+ *	history_add	Adds a command into the history
+ *
+ *	history_get_prev	Gets previous command in history
+ *
+ *	history_get_next	Gets next command in history
+ *
+ * 	print_ui	Prints all ui elements like labels and lines
  * 	
- * 	print_log()	Iterates trough logged piped output and prints to screen
+ * 	print_log	Iterates trough logged piped output and prints to screen
  * 	
- * 	print_proc_table()	Prints process table
+ * 	print_proc_table	Prints process table
  *
- * 	ani_char()	Returns index of animated character in process table.
+ * 	ani_char	Returns index of animated character in process table.
  *
- * 	update_screen()	Updates screen
+ * 	update_screen	Updates screen
  *
- * 	init_ncurses()	Initiates ncurses context. Called once.
+ * 	init_ncurses	Initiates ncurses context. Called once.
  *
- * 	end_ncurses()	Ends ncurses context when exiting program.
+ * 	end_ncurses	Ends ncurses context when exiting program.
  *
  */
 

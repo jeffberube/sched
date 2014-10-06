@@ -280,8 +280,8 @@ int main() {
 
 				/* If character is enter, parse command and execute */
 				case '\n':
-				//case KEY_ENTER:
-					if (comm_ptr > 0) exec_command();
+				case KEY_ENTER:
+					if (strlen(comm)) exec_command();
 					break;
 
 				/* Else add character to buffer if buffer isnt full */
