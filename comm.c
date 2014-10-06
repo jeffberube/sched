@@ -71,6 +71,8 @@ int validate_param() {
 			while (args[1][i] != 0) i++;
 			
 			if (i <= 8) return 1;
+			
+			/* If string exceeds length */
 			else {
 			
 				sprintf(errstr, "ERROR: Maximum process name length is 8 characters");
@@ -80,7 +82,18 @@ int validate_param() {
 			
 			break;
 
-		case EXEC:
+		case EXEC: ;
+			
+			FILE *exe;
+
+			if ((exe = fopen(args[1], "r")) == NULL) {
+				
+				sprintf(errstr, "ERROR: Could not find executable '%s'.",
+						args[1]);
+				
+				return 0;
+
+			} else return 1;
 
 			break;
 

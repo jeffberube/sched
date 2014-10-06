@@ -13,11 +13,17 @@
  *
  */
 
-pnode* pnode_create(int pid, char* name) {
+pnode* pnode_create(int pid, char *name) {
 	
+	/* Allocate node and set pid */
 	pnode *node = malloc(sizeof(pnode));
 	node->pid = pid;
-	node->name = name;
+	
+	/* Copy name into node */
+	node->name = malloc(strlen(name) + 1);
+	strcpy(node->name, name);
+
+	/* Set node state */	
 	node->state = READY;
 
 	return node;
@@ -41,7 +47,7 @@ pnode* pnode_get_node_by_pid(int pid) {
 		tmp = tmp->next;
 	
 	/* If tmp is not node requested, iterate through blocked queue */
-	if (tmp && tmp->pid != pid && blocked) {
+	if ((tmp && tmp->pid != pid && blocked) || !head) {
 
 		tmp = blocked;
 
@@ -69,6 +75,7 @@ int pnode_destroy(pnode *node) {
 	if (!node)
 		return -1;
 	else {
+		free(node->name);
 		free(node);
 		return 0;
 	}

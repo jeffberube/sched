@@ -62,7 +62,7 @@ int spawn_process(char name[32]) {
  *
  */
 
-void exec_process(char *filename) {
+void exec_process(char filename[32]) {
 
 	pid = 0;
 	pid = fork();
@@ -70,7 +70,23 @@ void exec_process(char *filename) {
 	/* If child process */
 	if (!pid) {
 
+		/* Close read end of pipe on child */
+		close(fd[0]);
 
+		/* Redirect stdout to write end of pipe */
+		dup2(fd[1], STDOUT_FILENO);
+		dup2(fd[1], STDERR_FILENO);
+
+		/* Close write end of pipe */
+		close(fd[1]);
+
+		/* Exec and test for error */
+		execl(filename, filename, (char *) 0);
+
+		/* If code reaches this point, exec failed, print error and flush */
+		printf("ERROR: Could not execute process.\n");
+
+		_exit(-1);
 	
 	} else {
 		
@@ -117,10 +133,14 @@ void block_process(int pid) {
 			pnode_add_blocked(proc);
 
 			/* More than one process in ready queue and blocking head */
-			if (!head_is_tail && head_is_proc) {
+			if (!head_is_tail) {
 			
-				kill(head->pid, SIGCONT);
-				alarm(3);
+				if (head_is_proc) {
+					
+					kill(head->pid, SIGCONT);
+					alarm(3);
+
+				}
 
 			/* Only one process in list, start idle */
 			} else {
@@ -162,12 +182,13 @@ void run_process(int pid) {
 			pnode_remove_blocked(proc);
 			pnode_add_ready(proc);
 
+		/* Process already runnable */
 		} else
 			sprintf(errstr, "Process %d is already runnable.", pid);
 
+	/* Process was not found */
 	} else
 		sprintf(errstr, "ERROR: Process %d not found.", pid);
-
 
 }
 
@@ -196,11 +217,16 @@ void kill_process(int pid) {
 		kill(tmp->pid, SIGKILL);
 
 		/* More than one ready process and head is process to kill */
-		if (!head_is_tail && head_is_tmp) {
+		if (!head_is_tail) {
 		
-			/* Start next process in line and reset alarm */
-			kill(head->pid, SIGCONT);
-			alarm(3);
+			/* If head is process to be killed */
+			if (head_is_tmp) {
+
+				/* Start next process in line and reset alarm */
+				kill(head->pid, SIGCONT);
+				alarm(3);
+
+			}
 
 		/* If there is only one node in the list */
 		} else {

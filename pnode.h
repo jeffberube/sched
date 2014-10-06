@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 
 typedef enum pstate {READY, RUNNING, BLOCKED} pstate;
 

@@ -97,8 +97,8 @@ void log_add_line(char *buffer) {
 
 void next(int code) {
 
-	if(kill(running_pid, SIGSTOP) == -1)
-		printf("%d: %s.\n", running_pid, strerror(errno));
+	/* Stop currently running process */
+	kill(running_pid, SIGSTOP); 
 	
 	/* If there's a process in the list */
 	if (head) { 
@@ -107,18 +107,31 @@ void next(int code) {
 		tail = head;
 		head = head->next;
 
-		/* Run next process */
-		kill(head->pid, SIGCONT);
+		/* If there is a process left in the list */
+		if (head) {
+			
+			kill(head->pid, SIGCONT);
+			running_pid = head->pid;
 
-		running_pid = head->pid;
+		/* Else run idle */
+		} else if (!kill(idle_proc->pid, 0)) {
+
+			kill(idle_proc->pid, SIGCONT);
+			running_pid = idle_proc->pid;
+		
+		/* If idle is not alive, fail catastrophically */
+		} else 
+			exit(-1);
 
 	/* If list is empty, run idle process */
-	} else {
+	} else if (!kill(idle_proc->pid, 0)) {
 
 		kill(idle_proc->pid, SIGCONT);
 		running_pid = idle_proc->pid;
 
-	}
+	/* If idle is not alive, fail catastrophically */
+	} else
+		exit(-1);
 
 	alarm(3);
 
@@ -225,6 +238,14 @@ int main() {
 				/* If no character in buffer */
 				case ERR: 
 				case 255:		
+				case KEY_LEFT:
+				case KEY_RIGHT:
+
+					break;
+
+				case KEY_UP:
+				case KEY_DOWN:
+
 					break;
 
 				/* If character is backspace */
